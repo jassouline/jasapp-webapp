@@ -86,7 +86,7 @@ jobs:
 
       - name: Run webapp and check response
         run: |
-          docker run -d -p 8000:8000 --name jasapp-webapp-container jasapp-webapp
+          docker run -d -p 8000:8000 --name jasapp-webapp-container jassouline/jasapp-webapp
           sleep 5  # Attendre que le conteneur démarre
           response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000)
           docker stop jasapp-webapp-container
