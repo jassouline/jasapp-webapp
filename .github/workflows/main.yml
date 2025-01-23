@@ -56,7 +56,7 @@ jobs:
     needs: [docker-lint]
     runs-on: ubuntu-latest
     env:
-      TEST_IMAGE: ${{ secrets.DOCKER_HUB_REGISTRY_USER }}/jasapp:${{ github.ref_name }}
+      TEST_IMAGE: ${{ secrets.DOCKER_HUB_REGISTRY_USER }}/jasapp-webapp:${{ github.ref_name }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -86,7 +86,6 @@ jobs:
 
       - name: Run webapp and check response
         run: |
-          cd jasapp-webapp
           docker run -d -p 8000:8000 --name jasapp-webapp-container jasapp-webapp
           sleep 5  # Attendre que le conteneur démarre
           response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000)
@@ -101,8 +100,8 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'  # Only run on push to main branch
     env:
-      TEST_IMAGE: ${{ secrets.DOCKER_HUB_REGISTRY_USER }}/jasapp:${{ github.ref_name }}
-      RELEASE_IMAGE: ${{ secrets.DOCKER_HUB_REGISTRY_USER }}/jasapp:latest
+      TEST_IMAGE: ${{ secrets.DOCKER_HUB_REGISTRY_USER }}/jasapp-webapp:${{ github.ref_name }}
+      RELEASE_IMAGE: ${{ secrets.DOCKER_HUB_REGISTRY_USER }}/jasapp-webapp:latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
