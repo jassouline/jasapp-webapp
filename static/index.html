@@ -13,7 +13,6 @@
         body { padding: 20px; }
         .container { margin-top: 2rem; }
         .error-box {
-            margin-top: 2rem;
             border: 1px solid #e2e8f0; /* Light gray border */
             border-radius: 0.375rem; /* Equivalent to rounded-lg */
             padding: 1rem;
@@ -64,9 +63,29 @@
             margin-top: 1rem;
             padding: 0.5rem;
             border-radius: 0.25rem;
-            background-color: #f0f0f0; /* Light gray background */
             text-align: center;
             font-weight: bold;
+        }
+        /* Styles pour les écrans larges (>= md) */
+        @media (min-width: 768px) {
+            .container {
+                max-width: 80vw; /* Largeur de 80% de la fenêtre */
+            }
+            .editor-container {
+                width: 60%; /* Largeur de 60% pour l'éditeur */
+            }
+            .results-container {
+                width: 40%; /* Largeur de 40% pour les résultats */
+            }
+        }
+        .score-good { background-color: #f0fff4; color: #15803d; } /* Vert foncé */
+        .score-medium { background-color: #fef3c7; color: #ca8a04; } /* Orange foncé */
+        .score-bad { background-color: #fee2e2; color: #dc2626; } /* Rouge foncé */
+        .hidden {
+            display: none;
+        }
+        .github-fork-ribbon:before { 
+            background-color: #333
         }
     </style>
 </head>
@@ -92,7 +111,7 @@
                 <div class="text-center mt-8">
                     <button id="lintButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">Lint Dockerfile</button>
                 </div>
-                <div id="score" class="score-box"></div>
+                <div id="score" class="score-box hidden"></div>
             </div>
         </div>
     </div>
@@ -171,8 +190,24 @@
             .then(scoreData => {
                 const scoreDiv = document.getElementById('score');
                 scoreDiv.innerHTML = '';
+                scoreDiv.classList.remove('hidden'); // Affiche le div du score
+
                 const p = document.createElement('p');
-                p.textContent = `Score: ${scoreData.score}/100`;
+                const scoreValue = scoreData.score;
+                p.textContent = `Score: ${scoreValue}/100`;
+
+                // Ajoute une classe en fonction du score
+                if (scoreValue >= 90) {
+                    scoreDiv.classList.add('score-good');
+                    scoreDiv.classList.remove('score-medium', 'score-bad');
+                } else if (scoreValue >= 70) {
+                    scoreDiv.classList.add('score-medium');
+                    scoreDiv.classList.remove('score-good', 'score-bad');
+                } else {
+                    scoreDiv.classList.add('score-bad');
+                    scoreDiv.classList.remove('score-good', 'score-medium');
+                }
+
                 scoreDiv.appendChild(p);
             })
             .catch(error => {
