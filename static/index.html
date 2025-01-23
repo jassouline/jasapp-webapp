@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jasapp Web Linter</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/ace.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/theme-dracula.min.css">
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <style>
+        body { padding: 20px; }
+        .container { margin-top: 2rem; }
+        .error-box {
+            margin-top: 2rem;
+            border: 1px solid #e2e8f0; /* Light gray border */
+            border-radius: 0.375rem; /* Equivalent to rounded-lg */
+            padding: 1rem;
+            background-color: #f7fafc; /* Light gray background */
+            overflow: auto; /* Allow scrolling for content */
+        }
+        .error-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .error-item {
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+        }
+        .error-line {
+            color: #ef4444; /* Tailwind red-500 */
+            font-weight: 600; /* Semibold */
+        }
+        .error-message {
+            color: #34D399; /* Tailwind emerald-500 */
+        }
+        .error-severity-error {
+            background-color: #fee2e2; /* Tailwind red-100 */
+        }
+        .error-severity-warning {
+            background-color: #ffedd5; /* Tailwind orange-100 */
+        }
+        .error-severity-info {
+            background-color: #e5e7eb; /* Tailwind gray-200 */
+        }
+        .error-severity-style {
+            background-color: #dbeafe; /* Tailwind blue-100 */
+        }
+        .error-rule {
+            color: #3b82f6; /* Tailwind blue-500 */
+            font-weight: 600; /* Semibold */
+        }
+        .ace_editor {
+            border: 1px solid #eee;
+            height: 300px; /* Reduced height */
+        }
+        .ace_gutter-cell {
+            background-color: #282a36;
+            color: white;
+        }
+        .score-box {
+            margin-top: 1rem;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            background-color: #f0f0f0; /* Light gray background */
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-8 font-sans">
+    <div class="container mx-auto max-w-4xl bg-white rounded-lg shadow-lg p-10">
+        <div class="w-full flex justify-center items-center mb-8 space-x-4">
+            <a href="https://github.com/jassouline/jasapp" target="_blank">
+                <img src="/static/logo.png" alt="Jasapp Logo" class="h-20">
+            </a>
+            <h1 class="text-4xl font-bold text-center text-gray-800">Jasapp Dockerfile Linter</h1>
+        </div>
+        <div class="flex justify-between space-x-4">
+            <div class="w-1/2 pr-4">
+                <label for="editor" class="block text-gray-700 text-sm font-bold mb-2">Dockerfile Content:</label>
+                <div id="editor" class="editor"></div>
+            </div>
+            <div class="w-1/2 pl-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Linting Results:</label>
+                <div id="results" class="error-box">
+                    <ul class="error-list"></ul>
+                </div>
+                <div class="text-center mt-8">
+                    <button id="lintButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">Lint Dockerfile</button>
+                </div>
+                <div id="score" class="score-box"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/ace.js" type="text/javascript" charset="utf-8"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/mode-dockerfile.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/theme-dracula.min.js" type="text/javascript" charset="utf-8"></script>
+    <script>
+        var editor = ace.edit("editor");
+        editor.setTheme("ace/theme/dracula");
+        editor.session.setMode("ace/mode/dockerfile");
+        editor.setOptions({
+            fontSize: "14px",
+            minLines: 15,
+            maxLines: 50,
+        });
+        editor.setValue(`FROM ubuntu:latest\nRUN apt-get update`, -1);
+
+        document.getElementById('lintButton').addEventListener('click', function() {
+            const dockerfileContent = editor.getValue();
+            fetch('/lint/dockerfile', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({dockerfile_content: dockerfileContent})
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultsList = document.querySelector('#results .error-list');
+                resultsList.innerHTML = '';
+                if (data.errors.length > 0) {
+                    // Trier les erreurs par sévérité
+                    data.errors.sort((a, b) => {
+                        const severityOrder = {error: 0, warning: 1, info: 2, style: 3};
+                        return severityOrder[a.severity] - severityOrder[b.severity];
+                    });
+
+                    // Grouper les erreurs par sévérité
+                    const errorsBySeverity = {};
+                    data.errors.forEach(error => {
+                        if (!errorsBySeverity[error.severity]) {
+                            errorsBySeverity[error.severity] = [];
+                        }
+                        errorsBySeverity[error.severity].push(error);
+                    });
+
+                    // Afficher les erreurs groupées par sévérité
+                    for (const severity in errorsBySeverity) {
+                        const severityHeader = document.createElement('h5');
+                        severityHeader.classList.add('font-bold', 'text-lg', 'mt-4', 'mb-2', `error-severity-${severity}`);
+                        severityHeader.textContent = severity.toUpperCase() + ":";
+                        resultsList.appendChild(severityHeader);
+
+                        errorsBySeverity[severity].forEach((error, index) => {
+                            const li = document.createElement('li');
+                            li.classList.add('error-item', `error-severity-${error.severity}`);
+                            li.innerHTML = `${index+1}. [${error.rule}] Line <span class="error-line">${error.line}</span>: ${error.message} (Severity: <span class="font-semibold">${error.severity}</span>) <a href="${error.doc_link}" target="_blank" class="text-blue-600 hover:underline">(More info)</a>`;
+                            resultsList.appendChild(li);
+                        });
+                    }
+                } else {
+                    resultsList.innerHTML = '<li class="text-green-600">No errors found.</li>';
+                }
+
+                // Récupérer et afficher le score
+                return fetch('/score', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({dockerfile_content: dockerfileContent})
+                });
+            })
+            .then(response => response.json())
+            .then(scoreData => {
+                const scoreDiv = document.getElementById('score');
+                scoreDiv.innerHTML = '';
+                const p = document.createElement('p');
+                p.textContent = `Score: ${scoreData.score}/100`;
+                scoreDiv.appendChild(p);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.querySelector('#results .error-list').innerHTML = `<li class="text-red-600">Error: ${error}</li>`;
+            });
+        });
+    </script>
+</body>
+</html>
