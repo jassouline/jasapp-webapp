@@ -12,12 +12,15 @@ from jasapp.linter import Linter
 from jasapp.parser.dockerfile import DockerfileParser
 from jasapp.rules import all_rules
 from jasapp.scorer import Scorer
+from importlib.metadata import version
 
 app = FastAPI()
 
 # Configure static file serving
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="static")
+
+JASAPP_VERSION = version('jasapp')
 
 # Initialize rules for Dockerfiles
 dockerfile_rules = [rule() for rule_name, rule in all_rules.items() if rule.rule_type == "dockerfile"]
@@ -41,7 +44,7 @@ class LintingRequest(BaseModel):
 
 @app.get("/")
 async def root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse("index.html", {"request": request, "jasapp_version": JASAPP_VERSION})
 
 
 @app.post("/lint/dockerfile", response_model=LintingResult)

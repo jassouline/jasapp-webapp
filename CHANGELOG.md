@@ -6,6 +6,7 @@
 ### Added
 - Score with multiple colors
 - The score window is with a white background at the begining
+- Show the actual version of jasapp
 
 ### Changed
 - New color for the "Fork me on Github"
