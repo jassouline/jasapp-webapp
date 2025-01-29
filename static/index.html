@@ -14,10 +14,10 @@
         .container { margin-top: 2rem; }
         .error-box {
             border: 1px solid #e2e8f0; /* Light gray border */
-            border-radius: 0.375rem; /* Equivalent to rounded-lg */
+            border-radius: 0.375rem;   /* Equivalent à rounded-lg */
             padding: 1rem;
             background-color: #f7fafc; /* Light gray background */
-            overflow: auto; /* Allow scrolling for content */
+            overflow: auto;           /* Pour permettre le scroll interne */
         }
         .error-list {
             list-style-type: none;
@@ -53,7 +53,7 @@
         }
         .ace_editor {
             border: 1px solid #eee;
-            height: 300px; /* Reduced height */
+            height: 300px; /* Hauteur réduite */
         }
         .ace_gutter-cell {
             background-color: #282a36;
@@ -66,74 +66,168 @@
             text-align: center;
             font-weight: bold;
         }
-        /* Styles pour les écrans larges (>= md) */
-        @media (min-width: 768px) {
-            .container {
-                max-width: 80vw; /* Largeur de 80% de la fenêtre */
-            }
-            .editor-container {
-                width: 60%; /* Largeur de 60% pour l'éditeur */
-            }
-            .results-container {
-                width: 40%; /* Largeur de 40% pour les résultats */
-            }
-        }
-        .score-good { background-color: #f0fff4; color: #15803d; } /* Vert foncé */
+        .score-good   { background-color: #f0fff4; color: #15803d; } /* Vert foncé */
         .score-medium { background-color: #fef3c7; color: #ca8a04; } /* Orange foncé */
-        .score-bad { background-color: #fee2e2; color: #dc2626; } /* Rouge foncé */
+        .score-bad    { background-color: #fee2e2; color: #dc2626; } /* Rouge foncé */
         .hidden {
             display: none;
         }
         .github-fork-ribbon:before { 
             background-color: #333
         }
+        /* Pour onglets actifs/inactifs */
+        .tab-active {
+            border-bottom: 2px solid #2563eb; /* Couleur bleue */
+            font-weight: bold;
+            color: #2563eb;
+        }
     </style>
 </head>
 <body class="bg-gray-100 p-8 font-sans">
-    <a class="github-fork-ribbon right-top fixed" href="https://github.com/jassouline/jasapp" data-ribbon="Fork me on GitHub" title="Fork me on GitHub" target="_blank">Fork me on GitHub</a>
+    <!-- Ruban GitHub -->
+    <a class="github-fork-ribbon right-top fixed" 
+       href="https://github.com/jassouline/jasapp"
+       data-ribbon="Fork me on GitHub" 
+       title="Fork me on GitHub" 
+       target="_blank">
+       Fork me on GitHub
+    </a>
+
     <div class="container mx-auto max-w-4xl bg-white rounded-lg shadow-lg p-10">
+        <!-- Logo et titre -->
         <div class="w-full flex justify-center items-center mb-8 space-x-4">
             <a href="https://github.com/jassouline/jasapp" target="_blank">
                 <img src="/static/logo.png" alt="Jasapp Logo" class="h-20">
             </a>
-            <h1 class="text-4xl font-bold text-center text-gray-800">Jasapp Dockerfile Linter
+            <h1 class="text-4xl font-bold text-center text-gray-800">
+                Jasapp Linter
                 <span class="text-lg text-gray-600">v{{ jasapp_version }}</span>
             </h1>
         </div>
-        <div class="flex justify-between space-x-4">
-            <div class="w-1/2 pr-4">
-                <label for="editor" class="block text-gray-700 text-sm font-bold mb-2">Dockerfile Content:</label>
-                <div id="editor" class="editor"></div>
+
+        <!-- Barre d'onglets -->
+        <div class="flex border-b border-gray-300 mb-4">
+            <!-- Onglet Dockerfile -->
+            <button id="tabDockerfile"
+                    class="px-4 py-2 text-gray-700 focus:outline-none tab-active"
+                    data-target="dockerfileSection">
+                Dockerfile Lint
+            </button>
+            <!-- Onglet K8s -->
+            <button id="tabK8s"
+                    class="px-4 py-2 text-gray-700 focus:outline-none"
+                    data-target="k8sSection">
+                K8s Manifest Lint
+            </button>
+        </div>
+
+        <!-- SECTION DOCKERFILE -->
+        <div id="dockerfileSection" class="tab-section">
+            <div class="flex justify-between space-x-4">
+                <!-- Éditeur Dockerfile -->
+                <div class="w-1/2 pr-4">
+                    <label for="editorDockerfile" class="block text-gray-700 text-sm font-bold mb-2">Dockerfile Content:</label>
+                    <div id="editorDockerfile" class="editor"></div>
+                </div>
+                <!-- Résultats Dockerfile -->
+                <div class="w-1/2 pl-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Linting Results:</label>
+                    <div id="resultsDockerfile" class="error-box">
+                        <ul class="error-list"></ul>
+                    </div>
+                    <div class="text-center mt-8">
+                        <button id="lintButtonDockerfile" 
+                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">
+                            Lint Dockerfile
+                        </button>
+                    </div>
+                    <div id="scoreDockerfile" class="score-box hidden"></div>
+                </div>
             </div>
-            <div class="w-1/2 pl-4">
-                <label class="block text-gray-700 text-sm font-bold mb-2">Linting Results:</label>
-                <div id="results" class="error-box">
-                    <ul class="error-list"></ul>
+        </div>
+
+        <!-- SECTION K8S -->
+        <div id="k8sSection" class="tab-section hidden">
+            <div class="flex justify-between space-x-4">
+                <!-- Éditeur K8s -->
+                <div class="w-1/2 pr-4">
+                    <label for="editorK8s" class="block text-gray-700 text-sm font-bold mb-2">Kubernetes Manifest:</label>
+                    <div id="editorK8s" class="editor"></div>
                 </div>
-                <div class="text-center mt-8">
-                    <button id="lintButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">Lint Dockerfile</button>
+                <!-- Résultats K8s -->
+                <div class="w-1/2 pl-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Linting Results:</label>
+                    <div id="resultsK8s" class="error-box">
+                        <ul class="error-list"></ul>
+                    </div>
+                    <div class="text-center mt-8">
+                        <button id="lintButtonK8s" 
+                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">
+                            Lint K8s Manifest
+                        </button>
+                    </div>
+                    <div id="scoreK8s" class="score-box hidden"></div>
                 </div>
-                <div id="score" class="score-box hidden"></div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/ace.js" type="text/javascript" charset="utf-8"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/mode-dockerfile.min.js" type="text/javascript" charset="utf-8"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/theme-dracula.min.js" type="text/javascript" charset="utf-8"></script>
+    <!-- Scripts ACE -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/ace.js" 
+            type="text/javascript" charset="utf-8"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/mode-dockerfile.min.js"
+            type="text/javascript" charset="utf-8"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/mode-yaml.min.js"
+            type="text/javascript" charset="utf-8"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/theme-dracula.min.js"
+            type="text/javascript" charset="utf-8"></script>
+
     <script>
-        var editor = ace.edit("editor");
-        editor.setTheme("ace/theme/dracula");
-        editor.session.setMode("ace/mode/dockerfile");
-        editor.setOptions({
+        // -- Onglets --
+        const tabButtons = document.querySelectorAll('[data-target]');
+        const tabSections = document.querySelectorAll('.tab-section');
+
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Retire la classe active de tous les boutons
+                tabButtons.forEach(b => b.classList.remove('tab-active'));
+                // Masque toutes les sections
+                tabSections.forEach(section => section.classList.add('hidden'));
+
+                // Ajoute la classe active au bouton cliqué
+                btn.classList.add('tab-active');
+                // Affiche la section associée
+                const target = btn.getAttribute('data-target');
+                document.getElementById(target).classList.remove('hidden');
+            });
+        });
+
+        // -- ACE Editors --
+        // Dockerfile
+        var editorDockerfile = ace.edit("editorDockerfile");
+        editorDockerfile.setTheme("ace/theme/dracula");
+        editorDockerfile.session.setMode("ace/mode/dockerfile");
+        editorDockerfile.setOptions({
             fontSize: "14px",
             minLines: 15,
             maxLines: 50,
         });
-        editor.setValue(`FROM ubuntu:latest\nRUN apt-get update`, -1);
+        editorDockerfile.setValue(`FROM ubuntu:latest\nRUN apt-get update`, -1);
 
-        document.getElementById('lintButton').addEventListener('click', function() {
-            const dockerfileContent = editor.getValue();
+        // K8s
+        var editorK8s = ace.edit("editorK8s");
+        editorK8s.setTheme("ace/theme/dracula");
+        editorK8s.session.setMode("ace/mode/yaml");
+        editorK8s.setOptions({
+            fontSize: "14px",
+            minLines: 15,
+            maxLines: 50,
+        });
+        editorK8s.setValue(`apiVersion: v1\nkind: Pod\nmetadata:\n  name: mypod\nspec:\n  containers:\n  - name: mycontainer\n    image: nginx:latest\n`, -1);
+
+        // -- Dockerfile Lint action --
+        document.getElementById('lintButtonDockerfile').addEventListener('click', function() {
+            const dockerfileContent = editorDockerfile.getValue();
             fetch('/lint/dockerfile', {
                 method: 'POST',
                 headers: {
@@ -143,16 +237,16 @@
             })
             .then(response => response.json())
             .then(data => {
-                const resultsList = document.querySelector('#results .error-list');
+                const resultsList = document.querySelector('#resultsDockerfile .error-list');
                 resultsList.innerHTML = '';
                 if (data.errors.length > 0) {
-                    // Trier les erreurs par sévérité
+                    // Tri par sévérité
                     data.errors.sort((a, b) => {
                         const severityOrder = {error: 0, warning: 1, info: 2, style: 3};
                         return severityOrder[a.severity] - severityOrder[b.severity];
                     });
 
-                    // Grouper les erreurs par sévérité
+                    // Regroupement
                     const errorsBySeverity = {};
                     data.errors.forEach(error => {
                         if (!errorsBySeverity[error.severity]) {
@@ -161,17 +255,19 @@
                         errorsBySeverity[error.severity].push(error);
                     });
 
-                    // Afficher les erreurs groupées par sévérité
+                    // Affichage groupé
                     for (const severity in errorsBySeverity) {
                         const severityHeader = document.createElement('h5');
-                        severityHeader.classList.add('font-bold', 'text-lg', 'mt-4', 'mb-2', `error-severity-${severity}`);
+                        severityHeader.classList.add('font-bold','text-lg','mt-4','mb-2',`error-severity-${severity}`);
                         severityHeader.textContent = severity.toUpperCase() + ":";
                         resultsList.appendChild(severityHeader);
 
                         errorsBySeverity[severity].forEach((error, index) => {
                             const li = document.createElement('li');
                             li.classList.add('error-item', `error-severity-${error.severity}`);
-                            li.innerHTML = `${index+1}. [${error.rule}] Line <span class="error-line">${error.line}</span>: ${error.message} (Severity: <span class="font-semibold">${error.severity}</span>) <a href="${error.doc_link}" target="_blank" class="text-blue-600 hover:underline">(More info)</a>`;
+                            li.innerHTML = `${index+1}. [${error.rule}] Line <span class="error-line">${error.line}</span>: ${error.message} 
+                                (Severity: <span class="font-semibold">${error.severity}</span>) 
+                                <a href="${error.doc_link}" target="_blank" class="text-blue-600 hover:underline">(More info)</a>`;
                             resultsList.appendChild(li);
                         });
                     }
@@ -190,31 +286,122 @@
             })
             .then(response => response.json())
             .then(scoreData => {
-                const scoreDiv = document.getElementById('score');
+                const scoreDiv = document.getElementById('scoreDockerfile');
                 scoreDiv.innerHTML = '';
-                scoreDiv.classList.remove('hidden'); // Affiche le div du score
+                scoreDiv.classList.remove('hidden');
 
                 const p = document.createElement('p');
                 const scoreValue = scoreData.score;
                 p.textContent = `Score: ${scoreValue}/100`;
 
-                // Ajoute une classe en fonction du score
+                // Classes en fonction du score
                 if (scoreValue >= 90) {
                     scoreDiv.classList.add('score-good');
-                    scoreDiv.classList.remove('score-medium', 'score-bad');
+                    scoreDiv.classList.remove('score-medium','score-bad');
                 } else if (scoreValue >= 70) {
                     scoreDiv.classList.add('score-medium');
-                    scoreDiv.classList.remove('score-good', 'score-bad');
+                    scoreDiv.classList.remove('score-good','score-bad');
                 } else {
                     scoreDiv.classList.add('score-bad');
-                    scoreDiv.classList.remove('score-good', 'score-medium');
+                    scoreDiv.classList.remove('score-good','score-medium');
                 }
 
                 scoreDiv.appendChild(p);
             })
             .catch(error => {
                 console.error('Error:', error);
-                document.querySelector('#results .error-list').innerHTML = `<li class="text-red-600">Error: ${error}</li>`;
+                document.querySelector('#resultsDockerfile .error-list')
+                    .innerHTML = `<li class="text-red-600">Error: ${error}</li>`;
+            });
+        });
+
+        // -- K8s Lint action --
+        document.getElementById('lintButtonK8s').addEventListener('click', function() {
+            const k8sContent = editorK8s.getValue();
+            fetch('/lint/k8s', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({k8s_manifest: k8sContent})
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultsList = document.querySelector('#resultsK8s .error-list');
+                resultsList.innerHTML = '';
+                if (data.errors.length > 0) {
+                    // Tri par sévérité
+                    data.errors.sort((a, b) => {
+                        const severityOrder = {error: 0, warning: 1, info: 2, style: 3};
+                        return severityOrder[a.severity] - severityOrder[b.severity];
+                    });
+
+                    // Regroupement
+                    const errorsBySeverity = {};
+                    data.errors.forEach(error => {
+                        if (!errorsBySeverity[error.severity]) {
+                            errorsBySeverity[error.severity] = [];
+                        }
+                        errorsBySeverity[error.severity].push(error);
+                    });
+
+                    // Affichage groupé
+                    for (const severity in errorsBySeverity) {
+                        const severityHeader = document.createElement('h5');
+                        severityHeader.classList.add('font-bold','text-lg','mt-4','mb-2',`error-severity-${severity}`);
+                        severityHeader.textContent = severity.toUpperCase() + ":";
+                        resultsList.appendChild(severityHeader);
+
+                        errorsBySeverity[severity].forEach((error, index) => {
+                            const li = document.createElement('li');
+                            li.classList.add('error-item', `error-severity-${error.severity}`);
+                            li.innerHTML = `${index+1}. [${error.rule}] Line <span class="error-line">${error.line}</span>: ${error.message} 
+                                (Severity: <span class="font-semibold">${error.severity}</span>) 
+                                <a href="${error.doc_link}" target="_blank" class="text-blue-600 hover:underline">(More info)</a>`;
+                            resultsList.appendChild(li);
+                        });
+                    }
+                } else {
+                    resultsList.innerHTML = '<li class="text-green-600">No errors found.</li>';
+                }
+
+                // Exemple de score K8s (adapter si besoin)
+                return fetch('/score/k8s', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({k8s_manifest: k8sContent})
+                });
+            })
+            .then(response => response.json())
+            .then(scoreData => {
+                const scoreDiv = document.getElementById('scoreK8s');
+                scoreDiv.innerHTML = '';
+                scoreDiv.classList.remove('hidden');
+
+                const p = document.createElement('p');
+                const scoreValue = scoreData.score;
+                p.textContent = `Score: ${scoreValue}/100`;
+
+                // Classes en fonction du score
+                if (scoreValue >= 90) {
+                    scoreDiv.classList.add('score-good');
+                    scoreDiv.classList.remove('score-medium','score-bad');
+                } else if (scoreValue >= 70) {
+                    scoreDiv.classList.add('score-medium');
+                    scoreDiv.classList.remove('score-good','score-bad');
+                } else {
+                    scoreDiv.classList.add('score-bad');
+                    scoreDiv.classList.remove('score-good','score-medium');
+                }
+
+                scoreDiv.appendChild(p);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.querySelector('#resultsK8s .error-list')
+                    .innerHTML = `<li class="text-red-600">Error: ${error}</li>`;
             });
         });
     </script>

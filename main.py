@@ -6,13 +6,16 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
+from importlib.metadata import version
 
-# Importations corrigées depuis le package jasapp installé
+# Imports jasapp
 from jasapp.linter import Linter
 from jasapp.parser.dockerfile import DockerfileParser
+from jasapp.parser.kubernetes import KubernetesParser  # <-- On importe ici
 from jasapp.rules import all_rules
 from jasapp.scorer import Scorer
-from importlib.metadata import version
+
+from typing import Union
 
 app = FastAPI()
 
@@ -22,12 +25,25 @@ templates = Jinja2Templates(directory="static")
 
 JASAPP_VERSION = version('jasapp')
 
-# Initialize rules for Dockerfiles
-dockerfile_rules = [rule() for rule_name, rule in all_rules.items() if rule.rule_type == "dockerfile"]
+# Règles Dockerfile (filtrées sur rule_type="dockerfile")
+dockerfile_rules = [
+    rule() for rule_name, rule in all_rules.items()
+    if rule.rule_type == "dockerfile"
+]
 
+# Règles K8s (filtrées sur rule_type="k8s") - À adapter si besoin
+k8s_rules = [
+    rule() for rule_name, rule in all_rules.items()
+    if rule.rule_type == "kubernetes"
+]
+
+
+# ---------------------
+# Modèles Pydantic
+# ---------------------
 
 class LintingError(BaseModel):
-    line: int = Field(..., example=1)
+    line: Union[int, str] = Field(..., example=1)
     rule: str = Field(..., example="STX0001")
     message: str = Field(..., example="WORKDIR must use an absolute path")
     severity: str = Field(..., example="error")
@@ -38,17 +54,45 @@ class LintingResult(BaseModel):
     errors: List[LintingError]
 
 
-class LintingRequest(BaseModel):
-    dockerfile_content: str = Field(..., example="FROM ubuntu:latest\nRUN apt-get update")
+# Requête Dockerfile
+class DockerfileLintingRequest(BaseModel):
+    dockerfile_content: str = Field(
+        ...,
+        example="FROM ubuntu:latest\nRUN apt-get update"
+    )
 
+
+# Requête K8s
+class K8sLintingRequest(BaseModel):
+    k8s_manifest: str = Field(
+        ...,
+        example="""apiVersion: v1
+kind: Pod
+metadata:
+  name: mypod
+spec:
+  containers:
+  - name: mycontainer
+    image: nginx:latest
+"""
+    )
+
+
+# ---------------------
+# Routes
+# ---------------------
 
 @app.get("/")
 async def root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request, "jasapp_version": JASAPP_VERSION})
+    return templates.TemplateResponse(
+        "index.html",
+        {"request": request, "jasapp_version": JASAPP_VERSION}
+    )
 
 
+# --- Dockerfile endpoints ---
 @app.post("/lint/dockerfile", response_model=LintingResult)
-async def lint_dockerfile(request: LintingRequest):
+async def lint_dockerfile(request: DockerfileLintingRequest):
     """
     Lints a Dockerfile from a string content.
     """
@@ -56,36 +100,36 @@ async def lint_dockerfile(request: LintingRequest):
         tmp_dockerfile.write(request.dockerfile_content)
         tmp_dockerfile_path = tmp_dockerfile.name
 
-    # Analyse du Dockerfile avec le parser
-    parser = DockerfileParser(tmp_dockerfile_path)
     try:
+        # Analyse du Dockerfile
+        parser = DockerfileParser(tmp_dockerfile_path)
         instructions = parser.parse()
+
+        # Exécution du linter
+        linter = Linter(dockerfile_rules)
+        errors = linter.run(instructions)
+
+        # Formatage des résultats
+        formatted_errors = []
+        for error in errors:
+            formatted_errors.append({
+                'line': error.get('line', 'N/A'),
+                'rule': error['rule'],
+                'message': error['message'],
+                'severity': error['severity'],
+                'doc_link': error.get('doc_link', '')
+            })
+
+        return {"errors": formatted_errors}
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error parsing Dockerfile: {e}")
     finally:
-        # Nettoyage du fichier temporaire
         os.unlink(tmp_dockerfile_path)
-
-    # Exécution du linter
-    linter = Linter(dockerfile_rules)
-    errors = linter.run(instructions)
-
-    # Formatage des résultats pour l'API
-    formatted_errors = []
-    for error in errors:
-        formatted_errors.append({
-            'line': error.get('line', 'N/A'),
-            'rule': error['rule'],
-            'message': error['message'],
-            'severity': error['severity'],
-            'doc_link': error.get('doc_link', '')  # Inclure le lien de documentation
-        })
-
-    return {"errors": formatted_errors}
 
 
 @app.post("/score", response_model=dict)
-async def get_score(request: LintingRequest):
+async def get_score(request: DockerfileLintingRequest):
     """
     Calculates and returns the quality score of a Dockerfile.
     """
@@ -94,18 +138,15 @@ async def get_score(request: LintingRequest):
         tmp_dockerfile_path = tmp_dockerfile.name
 
     try:
-        # Analyze the Dockerfile with the parser
         parser = DockerfileParser(tmp_dockerfile_path)
         instructions = parser.parse()
 
-        # Run the linter
         linter = Linter(dockerfile_rules)
         errors = linter.run(instructions)
 
-        # Calculate the score
+        # Calcul du score
         scorer = Scorer()
         score = scorer.calculate(errors, len(dockerfile_rules))
-
         return {"score": score}
 
     except Exception as e:
@@ -113,6 +154,60 @@ async def get_score(request: LintingRequest):
     finally:
         os.unlink(tmp_dockerfile_path)
 
+
+# --- K8s endpoints ---
+@app.post("/lint/k8s", response_model=LintingResult)
+async def lint_k8s(request: K8sLintingRequest):
+    print("Lint K8s request received:", request.k8s_manifest)  # Debug
+    try:
+        parser = KubernetesParser(file_path="")
+        resources = parser.parse_from_string(request.k8s_manifest)
+        print("Resources parsed:", resources)
+
+        linter = Linter(k8s_rules)
+        errors = linter.run(resources)
+        print("Errors found by linter:", errors)
+
+        formatted_errors = []
+        for error in errors:
+            formatted_errors.append({
+                'line': error.get('line', 'N/A'),
+                'rule': error['rule'],
+                'message': error['message'],
+                'severity': error['severity'],
+                'doc_link': error.get('doc_link', '')
+            })
+
+        return {"errors": formatted_errors}
+
+    except Exception as e:
+        print("Exception occurred:", e)  # Log l'exception
+        # 400 ou 500 selon votre logique
+        raise HTTPException(status_code=500, detail=f"Internal Error: {e}")
+
+
+@app.post("/score/k8s", response_model=dict)
+async def get_score_k8s(request: K8sLintingRequest):
+    """
+    Calculates and returns the quality score of a Kubernetes manifest.
+    """
+    parser = KubernetesParser(file_path="")
+    try:
+        resources = parser.parse_from_string(request.k8s_manifest)
+
+        linter = Linter(k8s_rules)
+        errors = linter.run(resources)
+
+        # Calcul du score
+        scorer = Scorer()
+        score = scorer.calculate(errors, len(k8s_rules))
+        return {"score": score}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error calculating K8s score: {e}")
+
+
+# -- Démarrage en local --
 if __name__ == '__main__':
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.2] - 2025-01-28
+### Fixed
+
+### Added
+- Capability to lint also a Kubernetes Manifest on the webui
+
+### Changed
+
+
 ## [0.1.1] - 2025-01-23
 ### Fixed
 
