@@ -16,6 +16,7 @@ from jasapp.rules import all_rules
 from jasapp.scorer import Scorer
 from jasapp.gemini_integration import generate_corrected_code
 
+from google.cloud import secretmanager
 
 from typing import Union
 
@@ -39,10 +40,22 @@ k8s_rules = [
     if rule.rule_type == "kubernetes"
 ]
 
+# Import Secret
+client = secretmanager.SecretManagerServiceClient()
+
+name = "projects/jasapp/secrets/GEMINI_API_KEY/versions/latest"  # Remplacez "GEMINI_API_KEY" par le nom de votre secret
+
+# Récupérer le secret.
+response = client.access_secret_version(name=name)
+secret_string = response.payload.data.decode("UTF-8")
+
+# Définir la variable d'environnement.
+os.environ["GEMINI_API_KEY"] = secret_string
 
 # ---------------------
 # Modèles Pydantic
 # ---------------------
+
 
 class LintingError(BaseModel):
     line: Union[int, str] = Field(..., example=1)
