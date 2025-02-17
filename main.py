@@ -261,7 +261,7 @@ async def ask_gemini_dockerfile(request: DockerfileLintingRequest):
         )
 
         if corrected_code is None:
-            raise HTTPException(status_code=500, detail="Error from Gemini API (returned None)")
+            raise HTTPException(status_code=500, detail="Too many requests to Gemini API... Wait 1 minute and try again.")
 
         return {"corrected_code": corrected_code}
 
@@ -306,7 +306,7 @@ async def ask_gemini_k8s(request: K8sLintingRequest):
         )
 
         if corrected_code is None:
-            raise HTTPException(status_code=500, detail="Error from Gemini API (returned None)")
+            raise HTTPException(status_code=500, detail="Too many requests to Gemini API... Wait 1 minute and try again.")
 
         return {"corrected_code": corrected_code}
 
