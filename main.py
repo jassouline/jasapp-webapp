@@ -40,17 +40,22 @@ k8s_rules = [
     if rule.rule_type == "kubernetes"
 ]
 
-# Import Secret
-client = secretmanager.SecretManagerServiceClient()
+try:
+    # Import Secret
+    client = secretmanager.SecretManagerServiceClient()
 
-name = "projects/jasapp/secrets/GEMINI_API_KEY/versions/latest"  # Remplacez "GEMINI_API_KEY" par le nom de votre secret
+    name = "projects/jasapp/secrets/GEMINI_API_KEY/versions/latest"  # Remplacez "GEMINI_API_KEY" par le nom de votre secret
 
-# Récupérer le secret.
-response = client.access_secret_version(name=name)
-secret_string = response.payload.data.decode("UTF-8")
+    # Récupérer le secret.
+    response = client.access_secret_version(name=name)
+    secret_string = response.payload.data.decode("UTF-8")
 
-# Définir la variable d'environnement.
-os.environ["GEMINI_API_KEY"] = secret_string
+    # Définir la variable d'environnement.
+    os.environ["GEMINI_API_KEY"] = secret_string
+
+except Exception as e:
+    gemini_api_key = os.getenv("GEMINI_API_KEY", "CHANGE_ME")
+    print("Error when authentication with GCP", {e})
 
 # ---------------------
 # Modèles Pydantic
