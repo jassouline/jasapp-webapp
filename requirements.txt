@@ -3,3 +3,4 @@ uvicorn
 jasapp
 requests
 jinja2
+google-generativeai==0.8.4

@@ -1,409 +1,601 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jasapp Web Linter</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/ace.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/theme-dracula.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.3/gh-fork-ribbon.min.css" />
-    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
-    <style>
-        body { padding: 20px; }
-        .container { margin-top: 2rem; }
-        .error-box {
-            border: 1px solid #e2e8f0; /* Light gray border */
-            border-radius: 0.375rem;   /* Equivalent à rounded-lg */
-            padding: 1rem;
-            background-color: #f7fafc; /* Light gray background */
-            overflow: auto;           /* Pour permettre le scroll interne */
-        }
-        .error-list {
-            list-style-type: none;
-            padding: 0;
-        }
-        .error-item {
-            margin-bottom: 1rem;
-            padding: 0.5rem;
-            border-radius: 0.25rem;
-        }
-        .error-line {
-            color: #ef4444; /* Tailwind red-500 */
-            font-weight: 600; /* Semibold */
-        }
-        .error-message {
-            color: #34D399; /* Tailwind emerald-500 */
-        }
-        .error-severity-error {
-            background-color: #fee2e2; /* Tailwind red-100 */
-        }
-        .error-severity-warning {
-            background-color: #ffedd5; /* Tailwind orange-100 */
-        }
-        .error-severity-info {
-            background-color: #e5e7eb; /* Tailwind gray-200 */
-        }
-        .error-severity-style {
-            background-color: #dbeafe; /* Tailwind blue-100 */
-        }
-        .error-rule {
-            color: #3b82f6; /* Tailwind blue-500 */
-            font-weight: 600; /* Semibold */
-        }
-        .ace_editor {
-            border: 1px solid #eee;
-            height: 300px; /* Hauteur réduite */
-        }
-        .ace_gutter-cell {
-            background-color: #282a36;
-            color: white;
-        }
-        .score-box {
-            margin-top: 1rem;
-            padding: 0.5rem;
-            border-radius: 0.25rem;
-            text-align: center;
-            font-weight: bold;
-        }
-        .score-good   { background-color: #f0fff4; color: #15803d; } /* Vert foncé */
-        .score-medium { background-color: #fef3c7; color: #ca8a04; } /* Orange foncé */
-        .score-bad    { background-color: #fee2e2; color: #dc2626; } /* Rouge foncé */
-        .hidden {
-            display: none;
-        }
-        .github-fork-ribbon:before { 
-            background-color: #333
-        }
-        /* Pour onglets actifs/inactifs */
-        .tab-active {
-            border-bottom: 2px solid #2563eb; /* Couleur bleue */
-            font-weight: bold;
-            color: #2563eb;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jasapp Web Linter</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/ace.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/theme-dracula.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.3/gh-fork-ribbon.min.css" />
+  <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+  <style>
+    body { padding: 20px; }
+    .container { margin-top: 2rem; }
+    .error-box {
+      border: 1px solid #e2e8f0;
+      border-radius: 0.375rem;
+      padding: 1rem;
+      background-color: #f7fafc;
+      overflow: auto;
+    }
+    .error-list { list-style-type: none; padding: 0; }
+    .error-item { margin-bottom: 1rem; padding: 0.5rem; border-radius: 0.25rem; }
+    .error-line { color: #ef4444; font-weight: 600; }
+    .error-severity-error   { background-color: #fee2e2; }
+    .error-severity-warning { background-color: #ffedd5; }
+    .error-severity-info    { background-color: #e5e7eb; }
+    .error-severity-style   { background-color: #dbeafe; }
+    .ace_editor { border: 1px solid #eee; height: 300px; }
+    .ace_gutter-cell { background-color: #282a36; color: white; }
+    .score-box {
+      margin-top: 1rem;
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      text-align: center;
+      font-weight: bold;
+    }
+    .score-good   { background-color: #f0fff4; color: #15803d; }
+    .score-medium { background-color: #fef3c7; color: #ca8a04; }
+    .score-bad    { background-color: #fee2e2; color: #dc2626; }
+    .hidden { display: none; }
+    .github-fork-ribbon:before { background-color: #333; }
+    /* Pour onglets actifs/inactifs */
+    .tab-active {
+      border-bottom: 2px solid #2563eb;
+      font-weight: bold;
+      color: #2563eb;
+    }
+  </style>
 </head>
 <body class="bg-gray-100 p-8 font-sans">
-    <!-- Ruban GitHub -->
-    <a class="github-fork-ribbon right-top fixed" 
-       href="https://github.com/jassouline/jasapp"
-       data-ribbon="Fork me on GitHub" 
-       title="Fork me on GitHub" 
-       target="_blank">
-       Fork me on GitHub
-    </a>
+  <!-- Ruban GitHub -->
+  <a class="github-fork-ribbon right-top fixed"
+     href="https://github.com/jassouline/jasapp"
+     data-ribbon="Fork me on GitHub"
+     title="Fork me on GitHub"
+     target="_blank">
+    Fork me on GitHub
+  </a>
 
-    <div class="container mx-auto max-w-4xl bg-white rounded-lg shadow-lg p-10">
-        <!-- Logo et titre -->
-        <div class="w-full flex justify-center items-center mb-8 space-x-4">
-            <a href="https://github.com/jassouline/jasapp" target="_blank">
-                <img src="/static/logo.png" alt="Jasapp Logo" class="h-20">
-            </a>
-            <h1 class="text-4xl font-bold text-center text-gray-800">
-                Jasapp Linter
-                <span class="text-lg text-gray-600">v{{ jasapp_version }}</span>
-            </h1>
-        </div>
-
-        <!-- Barre d'onglets -->
-        <div class="flex border-b border-gray-300 mb-4">
-            <!-- Onglet Dockerfile -->
-            <button id="tabDockerfile"
-                    class="px-4 py-2 text-gray-700 focus:outline-none tab-active"
-                    data-target="dockerfileSection">
-                Dockerfile Lint
-            </button>
-            <!-- Onglet K8s -->
-            <button id="tabK8s"
-                    class="px-4 py-2 text-gray-700 focus:outline-none"
-                    data-target="k8sSection">
-                K8s Manifest Lint
-            </button>
-        </div>
-
-        <!-- SECTION DOCKERFILE -->
-        <div id="dockerfileSection" class="tab-section">
-            <div class="flex justify-between space-x-4">
-                <!-- Éditeur Dockerfile -->
-                <div class="w-1/2 pr-4">
-                    <label for="editorDockerfile" class="block text-gray-700 text-sm font-bold mb-2">Dockerfile Content:</label>
-                    <div id="editorDockerfile" class="editor"></div>
-                </div>
-                <!-- Résultats Dockerfile -->
-                <div class="w-1/2 pl-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Linting Results:</label>
-                    <div id="resultsDockerfile" class="error-box">
-                        <ul class="error-list"></ul>
-                    </div>
-                    <div class="text-center mt-8">
-                        <button id="lintButtonDockerfile" 
-                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">
-                            Lint Dockerfile
-                        </button>
-                    </div>
-                    <div id="scoreDockerfile" class="score-box hidden"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- SECTION K8S -->
-        <div id="k8sSection" class="tab-section hidden">
-            <div class="flex justify-between space-x-4">
-                <!-- Éditeur K8s -->
-                <div class="w-1/2 pr-4">
-                    <label for="editorK8s" class="block text-gray-700 text-sm font-bold mb-2">Kubernetes Manifest:</label>
-                    <div id="editorK8s" class="editor"></div>
-                </div>
-                <!-- Résultats K8s -->
-                <div class="w-1/2 pl-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Linting Results:</label>
-                    <div id="resultsK8s" class="error-box">
-                        <ul class="error-list"></ul>
-                    </div>
-                    <div class="text-center mt-8">
-                        <button id="lintButtonK8s" 
-                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">
-                            Lint K8s Manifest
-                        </button>
-                    </div>
-                    <div id="scoreK8s" class="score-box hidden"></div>
-                </div>
-            </div>
-        </div>
+  <div class="container mx-auto max-w-4xl bg-white rounded-lg shadow-lg p-10">
+    <!-- Logo et titre -->
+    <div class="w-full flex justify-center items-center mb-8 space-x-4">
+      <a href="https://github.com/jassouline/jasapp" target="_blank">
+        <img src="/static/logo.png" alt="Jasapp Logo" class="h-20">
+      </a>
+      <h1 class="text-4xl font-bold text-center text-gray-800">
+        Jasapp Linter
+        <span class="text-lg text-gray-600">v{{ jasapp_version }}</span>
+      </h1>
     </div>
 
-    <!-- Scripts ACE -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/ace.js" 
-            type="text/javascript" charset="utf-8"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/mode-dockerfile.min.js"
-            type="text/javascript" charset="utf-8"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/mode-yaml.min.js"
-            type="text/javascript" charset="utf-8"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/theme-dracula.min.js"
-            type="text/javascript" charset="utf-8"></script>
+    <!-- Barre d'onglets -->
+    <div class="flex border-b border-gray-300 mb-4">
+      <button id="tabDockerfile"
+              class="px-4 py-2 text-gray-700 focus:outline-none tab-active"
+              data-target="dockerfileSection">
+        Dockerfile Lint
+      </button>
+      <button id="tabK8s"
+              class="px-4 py-2 text-gray-700 focus:outline-none"
+              data-target="k8sSection">
+        K8s Manifest Lint
+      </button>
+    </div>
 
-    <script>
-        // -- Onglets --
-        const tabButtons = document.querySelectorAll('[data-target]');
-        const tabSections = document.querySelectorAll('.tab-section');
+    <!-- SECTION DOCKERFILE -->
+    <div id="dockerfileSection" class="tab-section">
+      <div class="flex justify-between space-x-4">
+        <!-- Éditeur Dockerfile -->
+        <div class="w-1/2 pr-4">
+          <label for="editorDockerfile" class="block text-gray-700 text-sm font-bold mb-2">
+            Dockerfile Content:
+          </label>
+          <div id="editorDockerfile" class="editor"></div>
+        </div>
 
-        tabButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                // Retire la classe active de tous les boutons
-                tabButtons.forEach(b => b.classList.remove('tab-active'));
-                // Masque toutes les sections
-                tabSections.forEach(section => section.classList.add('hidden'));
+        <!-- Résultats Dockerfile -->
+        <div class="w-1/2 pl-4">
+          <label class="block text-gray-700 text-sm font-bold mb-2">
+            Linting Results:
+          </label>
+          <div id="resultsDockerfile" class="error-box">
+            <ul class="error-list"></ul>
+          </div>
 
-                // Ajoute la classe active au bouton cliqué
-                btn.classList.add('tab-active');
-                // Affiche la section associée
-                const target = btn.getAttribute('data-target');
-                document.getElementById(target).classList.remove('hidden');
+          <!-- Conteneur pour les deux boutons -->
+          <div class="flex justify-center items-center space-x-4 mt-4">
+            <button
+              id="lintButtonDockerfile"
+              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md"
+            >
+              Lint Dockerfile
+            </button>
+
+            <button
+              id="askGeminiDockerfile"
+              class="inline-flex items-center bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md"
+            >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 16 16"
+              fill="none"
+              class="h-5 w-5 mr-2"
+            >
+              <path
+                d="M16 8.016A8.522 8.522 0 008.016 16h-.032A8.521 8.521 0 000 8.016v-.032A8.521 8.521 0 007.984 0h.032A8.522 8.522 0 0016 7.984v.032z"
+                fill="url(#prefix__paint0_radial_980_20147)"
+              />
+              <defs>
+                <radialGradient
+                  id="prefix__paint0_radial_980_20147"
+                  cx="0"
+                  cy="0"
+                  r="1"
+                  gradientUnits="userSpaceOnUse"
+                  gradientTransform="matrix(16.1326 5.4553 -43.70045 129.2322 1.588 6.503)"
+                >
+                  <stop offset=".067" stop-color="#9168C0" />
+                  <stop offset=".343" stop-color="#5684D1" />
+                  <stop offset=".672" stop-color="#1BA1E3" />
+                </radialGradient>
+              </defs>
+            </svg>
+              <span>Ask Gemini</span>
+            </button>
+          </div>
+
+          <!-- Score Dockerfile -->
+          <div id="scoreDockerfile" class="score-box hidden"></div>
+        </div>
+      </div>
+    </div>
+    <!-- Cadre pour la suggestion Gemini (Dockerfile) -->
+    <div id="correctedDockerfile" class="hidden mt-4">
+      <label class="block text-gray-700 text-sm font-bold mb-2">
+        Gemini Suggested Dockerfile:
+      </label>
+      <div id="geminiDockerfileEditor"
+           class="ace_editor"
+           style="height: 200px; border:1px solid #eee;">
+      </div>
+    </div>
+
+    <!-- SECTION K8S -->
+    <div id="k8sSection" class="tab-section hidden">
+      <div class="flex justify-between space-x-4">
+        <!-- Éditeur K8s -->
+        <div class="w-1/2 pr-4">
+          <label for="editorK8s" class="block text-gray-700 text-sm font-bold mb-2">
+            Kubernetes Manifest:
+          </label>
+          <div id="editorK8s" class="editor"></div>
+        </div>
+
+        <!-- Résultats K8s -->
+        <div class="w-1/2 pl-4">
+          <label class="block text-gray-700 text-sm font-bold mb-2">
+            Linting Results:
+          </label>
+          <div id="resultsK8s" class="error-box">
+            <ul class="error-list"></ul>
+          </div>
+
+          <!-- Boutons K8s -->
+          <div class="flex justify-center items-center space-x-4 mt-4">
+            <button
+              id="lintButtonK8s"
+              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md"
+            >
+              Lint K8s Manifest
+            </button>
+
+            <button
+              id="askGeminiK8s"
+              class="inline-flex items-center bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md"
+            >
+            <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 16 16"
+            fill="none"
+            class="h-5 w-5 mr-2"
+            >
+            <path
+              d="M16 8.016A8.522 8.522 0 008.016 16h-.032A8.521 8.521 0 000 8.016v-.032A8.521 8.521 0 007.984 0h.032A8.522 8.522 0 0016 7.984v.032z"
+              fill="url(#prefix__paint0_radial_980_20147)"
+            />
+            <defs>
+              <radialGradient
+                id="prefix__paint0_radial_980_20147"
+                cx="0"
+                cy="0"
+                r="1"
+                gradientUnits="userSpaceOnUse"
+                gradientTransform="matrix(16.1326 5.4553 -43.70045 129.2322 1.588 6.503)"
+              >
+                <stop offset=".067" stop-color="#9168C0" />
+                <stop offset=".343" stop-color="#5684D1" />
+                <stop offset=".672" stop-color="#1BA1E3" />
+              </radialGradient>
+            </defs>
+          </svg>
+              <span>Ask Gemini</span>
+            </button>
+          </div>
+
+          <!-- Score K8s -->
+          <div id="scoreK8s" class="score-box hidden"></div>
+        </div>
+      </div>
+    </div>
+    <!-- Cadre pour la suggestion Gemini (K8s) -->
+    <div id="correctedK8s" class="hidden mt-4">
+      <label class="block text-gray-700 text-sm font-bold mb-2">
+        Gemini Suggested K8s Manifest:
+      </label>
+      <div id="geminiK8sEditor"
+           class="ace_editor"
+           style="height: 200px; border:1px solid #eee;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts ACE -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/ace.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/mode-dockerfile.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/mode-yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/theme-dracula.min.js"></script>
+
+  <script>
+    // -- Sélecteurs d'onglets --
+    const tabButtons = document.querySelectorAll('[data-target]');
+    const tabSections = document.querySelectorAll('.tab-section');
+
+    // -- Div de corrections Gemini (pour masquer/afficher) --
+    const correctedDockerfileDiv = document.getElementById('correctedDockerfile');
+    const correctedK8sDiv = document.getElementById('correctedK8s');
+
+    // -- Variables globales pour les éditeurs Gemini --
+    window.geminiDockerfileEditor = null;
+    window.geminiK8sEditor = null;
+
+    // Gestion onglets
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        // Retire la classe active
+        tabButtons.forEach(b => b.classList.remove('tab-active'));
+        // Masque toutes les sections
+        tabSections.forEach(section => section.classList.add('hidden'));
+
+        // Active l'onglet cliqué
+        btn.classList.add('tab-active');
+        const target = btn.getAttribute('data-target');
+        document.getElementById(target).classList.remove('hidden');
+
+        // Réinitialise la vue Gemini (optionnel)
+        correctedDockerfileDiv.classList.add('hidden');
+        correctedK8sDiv.classList.add('hidden');
+        if (window.geminiDockerfileEditor) {
+          window.geminiDockerfileEditor.setValue('', -1);
+        }
+        if (window.geminiK8sEditor) {
+          window.geminiK8sEditor.setValue('', -1);
+        }
+      });
+    });
+
+    // -- ACE Editors: Dockerfile principal --
+    var editorDockerfile = ace.edit("editorDockerfile");
+    editorDockerfile.setTheme("ace/theme/dracula");
+    editorDockerfile.session.setMode("ace/mode/dockerfile");
+    editorDockerfile.setOptions({
+      fontSize: "14px",
+      minLines: 15,
+      maxLines: 50,
+    });
+    editorDockerfile.setValue(`FROM ubuntu:latest\nRUN apt-get update`, -1);
+
+    // -- ACE Editors: K8s principal --
+    var editorK8s = ace.edit("editorK8s");
+    editorK8s.setTheme("ace/theme/dracula");
+    editorK8s.session.setMode("ace/mode/yaml");
+    editorK8s.setOptions({
+      fontSize: "14px",
+      minLines: 15,
+      maxLines: 50,
+    });
+    editorK8s.setValue(`apiVersion: v1\nkind: Pod\nmetadata:\n  name: mypod\nspec:\n  containers:\n  - name: mycontainer\n    image: nginx:latest\n`, -1);
+
+    // -- Lint Dockerfile
+    document.getElementById('lintButtonDockerfile').addEventListener('click', function() {
+      const dockerfileContent = editorDockerfile.getValue();
+      fetch('/lint/dockerfile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dockerfile_content: dockerfileContent })
+      })
+      .then(response => response.json())
+      .then(data => {
+        const resultsList = document.querySelector('#resultsDockerfile .error-list');
+        resultsList.innerHTML = '';
+        if (data.errors.length > 0) {
+          data.errors.sort((a, b) => {
+            const severityOrder = {error: 0, warning: 1, info: 2, style: 3};
+            return severityOrder[a.severity] - severityOrder[b.severity];
+          });
+          const errorsBySeverity = {};
+          data.errors.forEach(error => {
+            if (!errorsBySeverity[error.severity]) {
+              errorsBySeverity[error.severity] = [];
+            }
+            errorsBySeverity[error.severity].push(error);
+          });
+          for (const severity in errorsBySeverity) {
+            const severityHeader = document.createElement('h5');
+            severityHeader.classList.add('font-bold','text-lg','mt-4','mb-2',`error-severity-${severity}`);
+            severityHeader.textContent = severity.toUpperCase() + ":";
+            resultsList.appendChild(severityHeader);
+
+            errorsBySeverity[severity].forEach((error, index) => {
+              const li = document.createElement('li');
+              li.classList.add('error-item', `error-severity-${error.severity}`);
+              li.innerHTML = `${index+1}. [${error.rule}] Line <span class="error-line">${error.line}</span>: ${error.message}
+                (Severity: <span class="font-semibold">${error.severity}</span>)
+                <a href="${error.doc_link}" target="_blank" class="text-blue-600 hover:underline">(More info)</a>`;
+              resultsList.appendChild(li);
             });
-        });
+          }
+        } else {
+          resultsList.innerHTML = '<li class="text-green-600">No errors found.</li>';
+        }
 
-        // -- ACE Editors --
-        // Dockerfile
-        var editorDockerfile = ace.edit("editorDockerfile");
-        editorDockerfile.setTheme("ace/theme/dracula");
-        editorDockerfile.session.setMode("ace/mode/dockerfile");
-        editorDockerfile.setOptions({
+        // Score
+        return fetch('/score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dockerfile_content: dockerfileContent })
+        });
+      })
+      .then(response => response.json())
+      .then(scoreData => {
+        const scoreDiv = document.getElementById('scoreDockerfile');
+        scoreDiv.innerHTML = '';
+        scoreDiv.classList.remove('hidden');
+
+        const p = document.createElement('p');
+        const scoreValue = scoreData.score;
+        p.textContent = `Score: ${scoreValue}/100`;
+
+        if (scoreValue >= 90) {
+          scoreDiv.classList.add('score-good');
+          scoreDiv.classList.remove('score-medium','score-bad');
+        } else if (scoreValue >= 70) {
+          scoreDiv.classList.add('score-medium');
+          scoreDiv.classList.remove('score-good','score-bad');
+        } else {
+          scoreDiv.classList.add('score-bad');
+          scoreDiv.classList.remove('score-good','score-medium');
+        }
+        scoreDiv.appendChild(p);
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        document.querySelector('#resultsDockerfile .error-list')
+          .innerHTML = `<li class="text-red-600">Error: ${error}</li>`;
+      });
+    });
+
+    // -- Lint K8s
+    document.getElementById('lintButtonK8s').addEventListener('click', function() {
+      const k8sContent = editorK8s.getValue();
+      fetch('/lint/k8s', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ k8s_manifest: k8sContent })
+      })
+      .then(response => response.json())
+      .then(data => {
+        const resultsList = document.querySelector('#resultsK8s .error-list');
+        resultsList.innerHTML = '';
+        if (data.errors.length > 0) {
+          data.errors.sort((a, b) => {
+            const severityOrder = {error: 0, warning: 1, info: 2, style: 3};
+            return severityOrder[a.severity] - severityOrder[b.severity];
+          });
+
+          const errorsBySeverity = {};
+          data.errors.forEach(error => {
+            if (!errorsBySeverity[error.severity]) {
+              errorsBySeverity[error.severity] = [];
+            }
+            errorsBySeverity[error.severity].push(error);
+          });
+          for (const severity in errorsBySeverity) {
+            const severityHeader = document.createElement('h5');
+            severityHeader.classList.add('font-bold','text-lg','mt-4','mb-2',`error-severity-${severity}`);
+            severityHeader.textContent = severity.toUpperCase() + ":";
+            resultsList.appendChild(severityHeader);
+
+            errorsBySeverity[severity].forEach((error, index) => {
+              const li = document.createElement('li');
+              li.classList.add('error-item', `error-severity-${error.severity}`);
+              li.innerHTML = `${index+1}. [${error.rule}] Line <span class="error-line">${error.line}</span>: ${error.message}
+                (Severity: <span class="font-semibold">${error.severity}</span>)
+                <a href="${error.doc_link}" target="_blank" class="text-blue-600 hover:underline">(More info)</a>`;
+              resultsList.appendChild(li);
+            });
+          }
+        } else {
+          resultsList.innerHTML = '<li class="text-green-600">No errors found.</li>';
+        }
+
+        // Score K8s
+        return fetch('/score/k8s', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ k8s_manifest: k8sContent })
+        });
+      })
+      .then(response => response.json())
+      .then(scoreData => {
+        const scoreDiv = document.getElementById('scoreK8s');
+        scoreDiv.innerHTML = '';
+        scoreDiv.classList.remove('hidden');
+
+        const p = document.createElement('p');
+        const scoreValue = scoreData.score;
+        p.textContent = `Score: ${scoreValue}/100`;
+
+        if (scoreValue >= 90) {
+          scoreDiv.classList.add('score-good');
+          scoreDiv.classList.remove('score-medium','score-bad');
+        } else if (scoreValue >= 70) {
+          scoreDiv.classList.add('score-medium');
+          scoreDiv.classList.remove('score-good','score-bad');
+        } else {
+          scoreDiv.classList.add('score-bad');
+          scoreDiv.classList.remove('score-good','score-medium');
+        }
+        scoreDiv.appendChild(p);
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        document.querySelector('#resultsK8s .error-list')
+          .innerHTML = `<li class="text-red-600">Error: ${error}</li>`;
+      });
+    });
+
+    // -- "Ask Gemini" Dockerfile
+    document.getElementById('askGeminiDockerfile').addEventListener('click', function() {
+      const dockerfileContent = editorDockerfile.getValue();
+
+      fetch('/ask/gemini/dockerfile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dockerfile_content: dockerfileContent })
+      })
+      .then(response => {
+        // Vérifie le statut HTTP
+        if (!response.ok) {
+          if (response.status === 429) {
+            throw new Error("Resource exhausted, too many requests... Wait 1 minute and try again");
+          }
+          // Autre code d'erreur
+          return response.text().then(text => {
+            throw new Error(text || "Unknown error from Gemini Dockerfile");
+          });
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log("Gemini Dockerfile correction:", data);
+
+        // Nettoie les backticks
+        let code = data.corrected_code || "";
+        code = code
+          .replace(/```dockerfile\s*/i, '') // supprime ```dockerfile
+          .replace(/```/g, '');             // supprime tous les autres ```
+
+        // Crée l'éditeur Ace si pas déjà fait
+        if (!window.geminiDockerfileEditor) {
+          window.geminiDockerfileEditor = ace.edit("geminiDockerfileEditor");
+          window.geminiDockerfileEditor.setTheme("ace/theme/dracula");
+          window.geminiDockerfileEditor.session.setMode("ace/mode/dockerfile");
+          window.geminiDockerfileEditor.setOptions({
             fontSize: "14px",
-            minLines: 15,
+            minLines: 10,
             maxLines: 50,
-        });
-        editorDockerfile.setValue(`FROM ubuntu:latest\nRUN apt-get update`, -1);
+            readOnly: true
+          });
+        }
+        // Affiche le code corrigé
+        window.geminiDockerfileEditor.setValue(code || "No code returned", -1);
 
-        // K8s
-        var editorK8s = ace.edit("editorK8s");
-        editorK8s.setTheme("ace/theme/dracula");
-        editorK8s.session.setMode("ace/mode/yaml");
-        editorK8s.setOptions({
+        // Affiche le cadre
+        correctedDockerfileDiv.classList.remove('hidden');
+      })
+      .catch(error => {
+        console.error("Gemini Dockerfile Error:", error);
+
+        // Crée l'éditeur si pas déjà fait
+        if (!window.geminiDockerfileEditor) {
+          window.geminiDockerfileEditor = ace.edit("geminiDockerfileEditor");
+          window.geminiDockerfileEditor.setTheme("ace/theme/dracula");
+          window.geminiDockerfileEditor.session.setMode("ace/mode/dockerfile");
+          window.geminiDockerfileEditor.setOptions({
             fontSize: "14px",
-            minLines: 15,
+            minLines: 10,
             maxLines: 50,
-        });
-        editorK8s.setValue(`apiVersion: v1\nkind: Pod\nmetadata:\n  name: mypod\nspec:\n  containers:\n  - name: mycontainer\n    image: nginx:latest\n`, -1);
+            readOnly: true
+          });
+        }
+        // Affiche le message d'erreur dans l'éditeur
+        window.geminiDockerfileEditor.setValue(error.message, -1);
+        correctedDockerfileDiv.classList.remove('hidden');
+      });
+    });
 
-        // -- Dockerfile Lint action --
-        document.getElementById('lintButtonDockerfile').addEventListener('click', function() {
-            const dockerfileContent = editorDockerfile.getValue();
-            fetch('/lint/dockerfile', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({dockerfile_content: dockerfileContent})
-            })
-            .then(response => response.json())
-            .then(data => {
-                const resultsList = document.querySelector('#resultsDockerfile .error-list');
-                resultsList.innerHTML = '';
-                if (data.errors.length > 0) {
-                    // Tri par sévérité
-                    data.errors.sort((a, b) => {
-                        const severityOrder = {error: 0, warning: 1, info: 2, style: 3};
-                        return severityOrder[a.severity] - severityOrder[b.severity];
-                    });
+    // -- "Ask Gemini" K8s
+    document.getElementById('askGeminiK8s').addEventListener('click', function() {
+      const k8sContent = editorK8s.getValue();
 
-                    // Regroupement
-                    const errorsBySeverity = {};
-                    data.errors.forEach(error => {
-                        if (!errorsBySeverity[error.severity]) {
-                            errorsBySeverity[error.severity] = [];
-                        }
-                        errorsBySeverity[error.severity].push(error);
-                    });
+      fetch('/ask/gemini/k8s', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ k8s_manifest: k8sContent })
+      })
+      .then(response => {
+        if (!response.ok) {
+          if (response.status === 429) {
+            throw new Error("Resource exhausted, too many requests... Wait 1 minute and try again");
+          }
+          return response.text().then(text => {
+            throw new Error(text || "Unknown error from Gemini K8s");
+          });
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log("Gemini K8s correction:", data);
 
-                    // Affichage groupé
-                    for (const severity in errorsBySeverity) {
-                        const severityHeader = document.createElement('h5');
-                        severityHeader.classList.add('font-bold','text-lg','mt-4','mb-2',`error-severity-${severity}`);
-                        severityHeader.textContent = severity.toUpperCase() + ":";
-                        resultsList.appendChild(severityHeader);
+        let code = data.corrected_code || "";
+        code = code
+          .replace(/```yaml\s*/i, '') // supprime ```yaml
+          .replace(/```/g, '');
 
-                        errorsBySeverity[severity].forEach((error, index) => {
-                            const li = document.createElement('li');
-                            li.classList.add('error-item', `error-severity-${error.severity}`);
-                            li.innerHTML = `${index+1}. [${error.rule}] Line <span class="error-line">${error.line}</span>: ${error.message} 
-                                (Severity: <span class="font-semibold">${error.severity}</span>) 
-                                <a href="${error.doc_link}" target="_blank" class="text-blue-600 hover:underline">(More info)</a>`;
-                            resultsList.appendChild(li);
-                        });
-                    }
-                } else {
-                    resultsList.innerHTML = '<li class="text-green-600">No errors found.</li>';
-                }
+        if (!window.geminiK8sEditor) {
+          window.geminiK8sEditor = ace.edit("geminiK8sEditor");
+          window.geminiK8sEditor.setTheme("ace/theme/dracula");
+          window.geminiK8sEditor.session.setMode("ace/mode/yaml");
+          window.geminiK8sEditor.setOptions({
+            fontSize: "14px",
+            minLines: 10,
+            maxLines: 50,
+            readOnly: true
+          });
+        }
+        window.geminiK8sEditor.setValue(code || "No code returned", -1);
 
-                // Récupérer et afficher le score
-                return fetch('/score', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({dockerfile_content: dockerfileContent})
-                });
-            })
-            .then(response => response.json())
-            .then(scoreData => {
-                const scoreDiv = document.getElementById('scoreDockerfile');
-                scoreDiv.innerHTML = '';
-                scoreDiv.classList.remove('hidden');
-
-                const p = document.createElement('p');
-                const scoreValue = scoreData.score;
-                p.textContent = `Score: ${scoreValue}/100`;
-
-                // Classes en fonction du score
-                if (scoreValue >= 90) {
-                    scoreDiv.classList.add('score-good');
-                    scoreDiv.classList.remove('score-medium','score-bad');
-                } else if (scoreValue >= 70) {
-                    scoreDiv.classList.add('score-medium');
-                    scoreDiv.classList.remove('score-good','score-bad');
-                } else {
-                    scoreDiv.classList.add('score-bad');
-                    scoreDiv.classList.remove('score-good','score-medium');
-                }
-
-                scoreDiv.appendChild(p);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.querySelector('#resultsDockerfile .error-list')
-                    .innerHTML = `<li class="text-red-600">Error: ${error}</li>`;
-            });
-        });
-
-        // -- K8s Lint action --
-        document.getElementById('lintButtonK8s').addEventListener('click', function() {
-            const k8sContent = editorK8s.getValue();
-            fetch('/lint/k8s', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({k8s_manifest: k8sContent})
-            })
-            .then(response => response.json())
-            .then(data => {
-                const resultsList = document.querySelector('#resultsK8s .error-list');
-                resultsList.innerHTML = '';
-                if (data.errors.length > 0) {
-                    // Tri par sévérité
-                    data.errors.sort((a, b) => {
-                        const severityOrder = {error: 0, warning: 1, info: 2, style: 3};
-                        return severityOrder[a.severity] - severityOrder[b.severity];
-                    });
-
-                    // Regroupement
-                    const errorsBySeverity = {};
-                    data.errors.forEach(error => {
-                        if (!errorsBySeverity[error.severity]) {
-                            errorsBySeverity[error.severity] = [];
-                        }
-                        errorsBySeverity[error.severity].push(error);
-                    });
-
-                    // Affichage groupé
-                    for (const severity in errorsBySeverity) {
-                        const severityHeader = document.createElement('h5');
-                        severityHeader.classList.add('font-bold','text-lg','mt-4','mb-2',`error-severity-${severity}`);
-                        severityHeader.textContent = severity.toUpperCase() + ":";
-                        resultsList.appendChild(severityHeader);
-
-                        errorsBySeverity[severity].forEach((error, index) => {
-                            const li = document.createElement('li');
-                            li.classList.add('error-item', `error-severity-${error.severity}`);
-                            li.innerHTML = `${index+1}. [${error.rule}] Line <span class="error-line">${error.line}</span>: ${error.message} 
-                                (Severity: <span class="font-semibold">${error.severity}</span>) 
-                                <a href="${error.doc_link}" target="_blank" class="text-blue-600 hover:underline">(More info)</a>`;
-                            resultsList.appendChild(li);
-                        });
-                    }
-                } else {
-                    resultsList.innerHTML = '<li class="text-green-600">No errors found.</li>';
-                }
-
-                // Exemple de score K8s (adapter si besoin)
-                return fetch('/score/k8s', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({k8s_manifest: k8sContent})
-                });
-            })
-            .then(response => response.json())
-            .then(scoreData => {
-                const scoreDiv = document.getElementById('scoreK8s');
-                scoreDiv.innerHTML = '';
-                scoreDiv.classList.remove('hidden');
-
-                const p = document.createElement('p');
-                const scoreValue = scoreData.score;
-                p.textContent = `Score: ${scoreValue}/100`;
-
-                // Classes en fonction du score
-                if (scoreValue >= 90) {
-                    scoreDiv.classList.add('score-good');
-                    scoreDiv.classList.remove('score-medium','score-bad');
-                } else if (scoreValue >= 70) {
-                    scoreDiv.classList.add('score-medium');
-                    scoreDiv.classList.remove('score-good','score-bad');
-                } else {
-                    scoreDiv.classList.add('score-bad');
-                    scoreDiv.classList.remove('score-good','score-medium');
-                }
-
-                scoreDiv.appendChild(p);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.querySelector('#resultsK8s .error-list')
-                    .innerHTML = `<li class="text-red-600">Error: ${error}</li>`;
-            });
-        });
-    </script>
+        correctedK8sDiv.classList.remove('hidden');
+      })
+      .catch(error => {
+        console.error("Gemini K8s Error:", error);
+        if (!window.geminiK8sEditor) {
+          window.geminiK8sEditor = ace.edit("geminiK8sEditor");
+          window.geminiK8sEditor.setTheme("ace/theme/dracula");
+          window.geminiK8sEditor.session.setMode("ace/mode/yaml");
+          window.geminiK8sEditor.setOptions({
+            fontSize: "14px",
+            minLines: 10,
+            maxLines: 50,
+            readOnly: true
+          });
+        }
+        window.geminiK8sEditor.setValue(error.message, -1);
+        correctedK8sDiv.classList.remove('hidden');
+      });
+    });
+  </script>
 </body>
 </html>

@@ -11,9 +11,11 @@ from importlib.metadata import version
 # Imports jasapp
 from jasapp.linter import Linter
 from jasapp.parser.dockerfile import DockerfileParser
-from jasapp.parser.kubernetes import KubernetesParser  # <-- On importe ici
+from jasapp.parser.kubernetes import KubernetesParser
 from jasapp.rules import all_rules
 from jasapp.scorer import Scorer
+from jasapp.gemini_integration import generate_corrected_code
+
 
 from typing import Union
 
@@ -104,10 +106,12 @@ async def lint_dockerfile(request: DockerfileLintingRequest):
         # Analyse du Dockerfile
         parser = DockerfileParser(tmp_dockerfile_path)
         instructions = parser.parse()
+        print("Instructions parsed:", instructions)
 
         # Exécution du linter
         linter = Linter(dockerfile_rules)
         errors = linter.run(instructions)
+        print("Errors found by linter:", errors)
 
         # Formatage des résultats
         formatted_errors = []
@@ -158,7 +162,6 @@ async def get_score(request: DockerfileLintingRequest):
 # --- K8s endpoints ---
 @app.post("/lint/k8s", response_model=LintingResult)
 async def lint_k8s(request: K8sLintingRequest):
-    print("Lint K8s request received:", request.k8s_manifest)  # Debug
     try:
         parser = KubernetesParser(file_path="")
         resources = parser.parse_from_string(request.k8s_manifest)
@@ -205,6 +208,97 @@ async def get_score_k8s(request: K8sLintingRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error calculating K8s score: {e}")
+
+
+@app.post("/ask/gemini/dockerfile")
+async def ask_gemini_dockerfile(request: DockerfileLintingRequest):
+    """
+    Uses the Gemini API to generate a corrected Dockerfile
+    based on the lint errors found.
+    """
+    # 1) Créer un fichier temporaire avec le contenu Dockerfile
+    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.Dockerfile') as tmp_dockerfile:
+        tmp_dockerfile.write(request.dockerfile_content)
+        tmp_dockerfile_path = tmp_dockerfile.name
+
+    try:
+        # 2) Parser le Dockerfile et exécuter le linter
+        parser = DockerfileParser(tmp_dockerfile_path)
+        instructions = parser.parse()
+
+        linter = Linter(dockerfile_rules)
+        errors = linter.run(instructions)
+
+        # On formate les erreurs sous forme de dict
+        formatted_errors = []
+        for error in errors:
+            formatted_errors.append({
+                'line': error.get('line', 'N/A'),
+                'message': error['message'],
+            })
+
+        # 3) Appel à l’API Gemini pour correction
+        gemini_api_key = os.getenv("GEMINI_API_KEY", "CHANGE_ME")
+        corrected_code = generate_corrected_code(
+            file_type="dockerfile",
+            file_content=request.dockerfile_content,
+            errors=formatted_errors,
+            api_key=gemini_api_key,
+            detailed=False
+        )
+
+        if corrected_code is None:
+            raise HTTPException(status_code=500, detail="Error from Gemini API (returned None)")
+
+        return {"corrected_code": corrected_code}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Gemini Dockerfile error: {e}")
+    finally:
+        # Nettoyage du fichier temporaire
+        os.unlink(tmp_dockerfile_path)
+
+
+@app.post("/ask/gemini/k8s")
+async def ask_gemini_k8s(request: K8sLintingRequest):
+    """
+    Uses the Gemini API to generate a corrected K8s manifest
+    based on the lint errors found.
+    """
+    try:
+        # 1) Parser le manifest
+        parser = KubernetesParser(file_path="")
+        resources = parser.parse_from_string(request.k8s_manifest)
+
+        # 2) Linter
+        linter = Linter(k8s_rules)
+        errors = linter.run(resources)
+
+        # On formate les erreurs
+        formatted_errors = []
+        for error in errors:
+            formatted_errors.append({
+                'line': error.get('line', 'N/A'),
+                'message': error['message'],
+            })
+
+        # 3) Appel à l’API Gemini pour correction
+        gemini_api_key = os.getenv("GEMINI_API_KEY", "CHANGE_ME")
+        corrected_code = generate_corrected_code(
+            file_type="kubernetes",
+            file_content=request.k8s_manifest,
+            errors=formatted_errors,
+            api_key=gemini_api_key,
+            detailed=False
+        )
+
+        if corrected_code is None:
+            raise HTTPException(status_code=500, detail="Error from Gemini API (returned None)")
+
+        return {"corrected_code": corrected_code}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Gemini K8s error: {e}")
 
 
 # -- Démarrage en local --
