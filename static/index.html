@@ -293,6 +293,8 @@
       fontSize: "14px",
       minLines: 15,
       maxLines: 50,
+      showPrintMargin: false  // <-- Désactive la ligne verticale
+
     });
     editorDockerfile.setValue(`FROM ubuntu:latest\nRUN apt-get update`, -1);
 
@@ -304,6 +306,8 @@
       fontSize: "14px",
       minLines: 15,
       maxLines: 50,
+      showPrintMargin: false  // <-- Désactive la ligne verticale
+ 
     });
     editorK8s.setValue(`apiVersion: v1\nkind: Pod\nmetadata:\n  name: mypod\nspec:\n  containers:\n  - name: mycontainer\n    image: nginx:latest\n`, -1);
 
