@@ -1,6 +1,7 @@
 from typing import List
 import tempfile
 import os
+import contextlib
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
@@ -116,11 +117,13 @@ async def lint_dockerfile(request: DockerfileLintingRequest):
     """
     Lints a Dockerfile from a string content.
     """
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.Dockerfile') as tmp_dockerfile:
-        tmp_dockerfile.write(request.dockerfile_content)
-        tmp_dockerfile_path = tmp_dockerfile.name
-
+    tmp_dockerfile_path = None
     try:
+        # Use a context manager for safer temporary file handling
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.Dockerfile') as tmp_dockerfile:
+            tmp_dockerfile.write(request.dockerfile_content)
+            tmp_dockerfile_path = tmp_dockerfile.name
+
         # Analyse du Dockerfile
         parser = DockerfileParser(tmp_dockerfile_path)
         instructions = parser.parse()
@@ -147,7 +150,10 @@ async def lint_dockerfile(request: DockerfileLintingRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error parsing Dockerfile: {e}")
     finally:
-        os.unlink(tmp_dockerfile_path)
+        # Ensure cleanup even if file creation failed
+        if tmp_dockerfile_path and os.path.exists(tmp_dockerfile_path):
+            with contextlib.suppress(FileNotFoundError):
+                 os.unlink(tmp_dockerfile_path)
 
 
 @app.post("/score", response_model=dict)
@@ -155,11 +161,12 @@ async def get_score(request: DockerfileLintingRequest):
     """
     Calculates and returns the quality score of a Dockerfile.
     """
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.Dockerfile') as tmp_dockerfile:
-        tmp_dockerfile.write(request.dockerfile_content)
-        tmp_dockerfile_path = tmp_dockerfile.name
-
+    tmp_dockerfile_path = None
     try:
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.Dockerfile') as tmp_dockerfile:
+            tmp_dockerfile.write(request.dockerfile_content)
+            tmp_dockerfile_path = tmp_dockerfile.name
+
         parser = DockerfileParser(tmp_dockerfile_path)
         instructions = parser.parse()
 
@@ -174,7 +181,9 @@ async def get_score(request: DockerfileLintingRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error calculating score: {e}")
     finally:
-        os.unlink(tmp_dockerfile_path)
+        if tmp_dockerfile_path and os.path.exists(tmp_dockerfile_path):
+            with contextlib.suppress(FileNotFoundError):
+                 os.unlink(tmp_dockerfile_path)
 
 
 # --- K8s endpoints ---
@@ -234,12 +243,13 @@ async def ask_gemini_dockerfile(request: DockerfileLintingRequest):
     Uses the Gemini API to generate a corrected Dockerfile
     based on the lint errors found.
     """
-    # 1) Créer un fichier temporaire avec le contenu Dockerfile
-    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.Dockerfile') as tmp_dockerfile:
-        tmp_dockerfile.write(request.dockerfile_content)
-        tmp_dockerfile_path = tmp_dockerfile.name
-
+    tmp_dockerfile_path = None
     try:
+        # 1) Créer un fichier temporaire avec le contenu Dockerfile
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.Dockerfile') as tmp_dockerfile:
+            tmp_dockerfile.write(request.dockerfile_content)
+            tmp_dockerfile_path = tmp_dockerfile.name
+
         # 2) Parser le Dockerfile et exécuter le linter
         parser = DockerfileParser(tmp_dockerfile_path)
         instructions = parser.parse()
@@ -274,7 +284,9 @@ async def ask_gemini_dockerfile(request: DockerfileLintingRequest):
         raise HTTPException(status_code=500, detail=f"Gemini Dockerfile error: {e}")
     finally:
         # Nettoyage du fichier temporaire
-        os.unlink(tmp_dockerfile_path)
+        if tmp_dockerfile_path and os.path.exists(tmp_dockerfile_path):
+            with contextlib.suppress(FileNotFoundError):
+                 os.unlink(tmp_dockerfile_path)
 
 
 @app.post("/ask/gemini/k8s")
@@ -322,4 +334,6 @@ async def ask_gemini_k8s(request: K8sLintingRequest):
 # -- Démarrage en local --
 if __name__ == '__main__':
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Bind to localhost (127.0.0.1) instead of all interfaces for security.
+    # If external access is needed (e.g., Docker), use "0.0.0.0" cautiously.
+    uvicorn.run(app, host="127.0.0.1", port=8000)
